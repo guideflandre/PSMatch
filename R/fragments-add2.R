@@ -24,7 +24,7 @@
 #     ##################### NEW #####################
 #     if (length(labels)) {
 #         mod_check <- sapply(labels, function(labels) attr(labels, "spectrumNumber"))
-#         if (length(mod_check) != length(x) + length(y))
+#         if (length(mod_check) != length(x))
                 stop("Variable modifications are not yet supported")
 #         if (is.function(labels)) {
 #             labels <- labels(x)
