@@ -2,6 +2,7 @@
 ## THIS FILE WORKS ONLY IF PLOTSPECTRA IS MODIFIED TOO ##
 #########################################################
 ## Only changes to be done in every plotSpectra function:
+## (an extra small editing is needed for plotSpectraMirror)
 #########################################################
 # plotSpectra <- function(x, xlab = "m/z", ylab = "intensity", type = "h",
 #                         xlim = numeric(), ylim = numeric(),
