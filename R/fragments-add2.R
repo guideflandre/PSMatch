@@ -1,3 +1,48 @@
+#########################################################
+## THIS FILE WORKS ONLY IF PLOTSPECTRA IS MODIFIED TOO ##
+#########################################################
+## Only changes to be done in every plotSpectra function:
+#########################################################
+# plotSpectra <- function(x, xlab = "m/z", ylab = "intensity", type = "h",
+#                         xlim = numeric(), ylim = numeric(),
+#                         main = character(), col = "#00000080",
+#                         labels = character(), labelCex = 1, labelSrt = 0,
+#                         labelAdj = NULL, labelPos = NULL, labelOffset = 0.5,
+#                         labelCol = "#00000080", asp = 1, ...) {
+#     if (!length(main))
+#         main <- paste0("MS", msLevel(x), " RT: ", round(rtime(x), 1))
+#     nsp <- length(x)
+#     if (nsp == 1)
+#         col <- list(col)
+#     if (length(col) != nsp)
+#         col <- rep(col[1], nsp)
+#     if (length(main) != nsp)
+#         main <- rep(main[1], nsp)
+#     if (nsp > 1)
+#         par(mfrow = n2mfrow(nsp, asp = asp))
+#     ##################### NEW #####################
+#     if (length(labels)) {
+#         mod_check <- sapply(labels, function(labels) attr(labels, "spectrumNumber"))
+#         stopifnot(length(mod_check) == length(x))
+#         if (is.function(labels)) {
+#             labels <- labels(x)
+#         }
+#     }
+#     ##################### END NEW ##################### +[[i]] below
+#     
+#     for (i in seq_len(nsp))
+#         .plot_single_spectrum(x[i], xlab = xlab, ylab = ylab, type = type,
+#                               xlim = xlim, ylim = ylim, main = main[i],
+#                               col = col[[i]], labels = labels[[i]],
+#                               labelCex = labelCex, labelSrt = labelSrt,
+#                               labelAdj = labelAdj, labelPos = labelPos,
+#                               labelOffset = labelOffset, labelCol = labelCol,
+#                               ...)
+# }
+#########################################################
+
+
+
 #' Calculate ions produced by fragmentation
 #'
 #' Adds MS2 Fragments
