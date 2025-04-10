@@ -34,8 +34,9 @@
 ##' @param ylim `numeric(2)` defining the y-axis limits. The range of intensity
 ##'     values are used by default.
 ##'
-##' @param main `character(1)` with the title for the plot. By default the
-##'     spectrum's MS level and retention time (in seconds) is used.
+##' @param main `character(1)` with the title for the each spectrum. By default
+##' `NULL`, if variable modifications are used, the same title is applied on all
+##' plots originating from a common spectrum.
 ##'
 ##' @param col Named `character(4L)`. Colors for the labels, the character names
 ##'     need to be "b", "y", "acxz" and "other", respectively for the b-ions,
@@ -177,7 +178,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
                                   labelOffset = labelOffset,
                                   minorTicks = minorTicks,
                                   deltaMzData = deltaMzData[[i]],
-                                  ppm = ppm, old_par = old_par)
+                                  ppm = ppm)
     }
 }
 
@@ -209,11 +210,13 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
                                       labelCol = col, labelCex = 1, labelSrt = 0,
                                       labelAdj = NULL, labelPos = 3,
                                       labelOffset = 0.5, minorTicks = TRUE,
-                                      ppm = 20, deltaMzData = NULL,
-                                      old_par = old_par) {
+                                      ppm = 20, deltaMzData = NULL) {
     v <- peaksData(x)[[1L]]
     mzs <- v[, "mz"]
     ints <- v[, "intensity"]
+    
+    old_mar <- par("mar")
+    on.exit(par(mar = old_mar))
     
     if (!length(xlim))
         suppressWarnings(xlim <- range(mzs, na.rm = TRUE))
@@ -229,7 +232,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
             mar = par("mar") +
                 c(
                     -par("mar")[1L] * 0.6, 0,
-                    -par("mar")[3L] + par("cex.main"), 0
+                    -par("mar")[3L] * 0.6 + par("cex.main"), 0
                 )
         )
     } else par(mar = c(par("mar")[1L] * 0.8, 4, 1, 2))
@@ -437,36 +440,40 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
     ionb <- paste0("b", c(0, seq_len(n)))
     ionbpos <- xpos[!is_letter][ionb %in% labels]
     
-    segments(
-        ionbpos, ypos, ionbpos, ypos - chrhgt,
-        col = col[["b"]], lwd = 2L
-    )
-    segments(
-        ionbpos, ypos - chrhgt, ionbpos - chrwdh, ypos - chrhgt,
-        col = col[["b"]], lwd = 2L
-    )
-    text(
-        ionbpos, ypos - chrhgt,
-        adj = c(1.1, 1.3),
-        which(ionb %in% labels) - 1L,
-        cex = 1, col = col[["b"]]
-    )
+    if (length(ionbpos)) {
+        segments(
+            ionbpos, ypos, ionbpos, ypos - chrhgt,
+            col = col[["b"]], lwd = 2L
+        )
+        segments(
+            ionbpos, ypos - chrhgt, ionbpos - chrwdh, ypos - chrhgt,
+            col = col[["b"]], lwd = 2L
+        )
+        text(
+            ionbpos, ypos - chrhgt,
+            adj = c(1.1, 1.3),
+            which(ionb %in% labels) - 1L,
+            cex = 1, col = col[["b"]]
+        )
+    }
     
     iony <- paste0("y", rev(c(0, seq_len(n))))
     ionypos <- xpos[!is_letter][iony %in% labels]
     
-    segments(
-        ionypos, ypos, ionypos, ypos + chrhgt,
-        col = col[["y"]], lwd = 2L
-    )
-    segments(
-        ionypos, ypos + chrhgt, ionypos + chrwdh, ypos + chrhgt,
-        col = col[["y"]], lwd = 2L
-    )
-    text(
-        ionypos, ypos + chrhgt,
-        adj = c(-0.1, -0.3),
-        which(iony %in% labels),
-        cex = 1, col = col[["y"]]
-    )
+    if (length(ionypos)) {
+        segments(
+            ionypos, ypos, ionypos, ypos + chrhgt,
+            col = col[["y"]], lwd = 2L
+        )
+        segments(
+            ionypos, ypos + chrhgt, ionypos + chrwdh, ypos + chrhgt,
+            col = col[["y"]], lwd = 2L
+        )
+        text(
+            ionypos, ypos + chrhgt,
+            adj = c(-0.1, -0.3),
+            which(iony %in% labels),
+            cex = 1, col = col[["y"]]
+        )
+    }
 }
