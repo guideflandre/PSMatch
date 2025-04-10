@@ -246,7 +246,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
     xlim[2L] <- xlim[2L] + wdths
     
     ## add space for the annotation
-    ylim[2L] <- ylim[2L] + 15L * strheight("M")
+    ylim[2L] <- ylim[2L] + 8L * strheight("M")
     plot.window(xlim = xlim, ylim = ylim)
     
     peakCol <- rep_len(col[["other"]], length(labels))
@@ -299,7 +299,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
         peptide_sequence
     )
     
-    mtext(subtxt, line = -1, cex = 0.85)
+    mtext(subtxt, adj = 0, line = -1)
     
     base_peak <- which.max(abs(ints))
     text(mzs[base_peak], ints[base_peak] * 0.60,
@@ -336,14 +336,14 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
         abline(h = 0, col = "#808080", lty = 2)
         title(ylab = "delta m/z [ppm]", cex.lab = 0.9, line = 2)
         axis(
-            side = 1, lwd = 1, at = major_ticks,
+            side = 1, lwd = 1, at = major_ticks, pos = 0,
             col.ticks = "grey45", col = "grey45"
         )
         
         if (minorTicks) {
             axis(
                 side = 1, at = ticks[!ticks %in% major_ticks], labels = FALSE,
-                tck = par("tcl") * 1e-2, col.ticks = "grey65"
+                tck = par("tcl") * 1e-2, col.ticks = "grey65", pos = 0
             )
         }
     }
@@ -445,12 +445,12 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
             col = col[["b"]], lwd = 2L
         )
         segments(
-            ionbpos, ypos - chrhgt, ionbpos - chrwdh / 2, ypos - chrhgt * 1.5,
+            ionbpos, ypos - chrhgt, ionbpos - chrwdh, ypos - chrhgt,
             col = col[["b"]], lwd = 2L
         )
         text(
-            ionbpos - chrwdh / 2, ypos - chrhgt,
-            adj = c(1.3, 1.7),
+            ionbpos, ypos - chrhgt,
+            adj = c(1.1, 1.3),
             which(ionb %in% labels) - 1L,
             cex = 1, col = col[["b"]]
         )
@@ -465,12 +465,12 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
             col = col[["y"]], lwd = 2L
         )
         segments(
-            ionypos, ypos + chrhgt, ionypos + chrwdh / 2, ypos + chrhgt * 1.5,
+            ionypos, ypos + chrhgt, ionypos + chrwdh, ypos + chrhgt,
             col = col[["y"]], lwd = 2L
         )
         text(
-            ionypos + chrwdh / 2, ypos + chrhgt,
-            adj = c(-0.3, -0.7),
+            ionypos, ypos + chrhgt,
+            adj = c(-0.1, -0.3),
             which(iony %in% labels),
             cex = 1, col = col[["y"]]
         )
