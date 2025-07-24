@@ -154,7 +154,6 @@ test_that("defaultNeutralLoss", {
                  list(water = character(), ammonia = character()))
 })
 
-## For additional tests, refer to calculateFragments from PSMatch package
 test_that("calculateFragments: Default behaviour without modifications", {
     
     ## Test 1: Default behavior without modifications
@@ -173,6 +172,25 @@ test_that("calculateFragments: Default behaviour without modifications", {
     ## Check unique peptide without modifications
     expect_identical(unique(result$peptide), "PQR")
     })
+
+test_that("calculateFragments: Default behaviour with positional modifications", {
+    
+    ## Test 1: Default behavior with positional modifications
+    sequence <- "PQ[+10]R"
+    result <- calculateFragments(
+        sequence = sequence,
+        type = c("b", "y"),
+        z = 1,
+        fixed_modifications = NULL,
+        variable_modifications = numeric(),
+        max_mods = Inf,
+        neutralLoss = defaultNeutralLoss(),
+        verbose = FALSE
+    )
+    
+    ## Check unique peptide without modifications
+    expect_identical(unique(result$peptide), "PQ[+10]R")
+})
 
 test_that("calculateFragments: Behaviour with fixed modifications", {
     ## Test 2: Fixed modifications

@@ -21,7 +21,9 @@
 #'   package that implements a method for objects of class
 #'   `Spectrum2`.
 #'
-#' @param sequence `character()` providing a peptide sequence.
+#' @param sequence `character()` providing a peptide sequence. If positional 
+#' modifications are included in the sequence, variable modifications may not be
+#' used. See examples below for more detail.
 #'
 #' @param type `character` vector of target ions; possible values:
 #' `c("a", "b", "c", "x", "y", "z")`. Default is `type = c("b", "y")`.
@@ -37,11 +39,13 @@
 #'
 #' @param variable_modifications A named `numeric` vector of variable modifications.
 #' Depending on the maximum number of modifications (`max_mods`), all possible
-#' combinations are returned.
+#' combinations are returned. If positional modifications are present in the 
+#' given sequence, 
 #'
 #' @param max_mods A numeric indicating the maximum number of variable modifications
 #' allowed on the sequence at once. Does not include fixed modifications.
-#' Default value is positive infinity.
+#' Default value is positive infinity. Is ignored when positional modifications 
+#' are in effect.
 #'
 #' @param neutralLoss `list`, it has to have two named elments,
 #'     namely `water` and `ammonia` that contain a `character` vector
@@ -99,6 +103,12 @@
 #' calculateFragments("VESITARHGEVLQLRPK",
 #'                    type = c("a", "b", "c", "x", "y", "z"),
 #'                    z = 1:2)
+#'
+#'## calculate fragments for ACE with an added positional modification
+#' calculateFragments("A[+43.25]CE")
+#' 
+#' ## Error when combined positional modification and variable modification
+#' calculateFragments("A[+43.25]CE", variable_modifications = c(A = 43.25))
 #'
 #' ## neutral loss
 #' defaultNeutralLoss()
@@ -190,7 +200,15 @@ setMethod("calculateFragments", c("character", "missing"),
                                 neutralLoss = defaultNeutralLoss(),
                                 verbose = TRUE,
                                 modifications = NULL) {
-    if (nchar(sequence) <= 1L) {
+    
+    parsed_modifications <- .parseModifiedSequence(sequence)
+    canonical_sequence <- gsub("\\[.*?\\]", "", sequence)
+    
+    if (canonical_sequence != sequence & length(variable_modifications)) {
+        stop("Choose either variable_modifications or positional modifications")
+    }
+    
+    if (nchar(canonical_sequence) <= 1L) {
         stop("'sequence' has to have two or more residues.")
     }
 
@@ -200,7 +218,7 @@ setMethod("calculateFragments", c("character", "missing"),
     }
 
     ## split peptide sequence into aa
-    fragment.seq <- strsplit(sequence, "")[[1]]
+    fragment.seq <- strsplit(canonical_sequence, "")[[1]]
     fn <- length(fragment.seq)
 
     mod_combinations <-
@@ -263,9 +281,9 @@ setMethod("calculateFragments", c("character", "missing"),
     }
 
     ## calculate cumulative mass starting at the amino-terminus (for a, b, c)
-    amz <- cumsum(aamass[fragment.seq[-fn]])
+    amz <- cumsum(parsed_modifications[-fn]) + cumsum(aamass[fragment.seq[-fn]])
     ## calculate cumulative mass starting at the carboxyl-terminus (for x, y, z)
-    cmz <- cumsum(aamass[rev(fragment.seq[-1L])])
+    cmz <- cumsum(rev(parsed_modifications[-1L])) + cumsum(aamass[rev(fragment.seq[-1L])])
 
     ## calculate fragment mass (amino-terminus)
     tn <- length(amz)
@@ -279,11 +297,11 @@ setMethod("calculateFragments", c("character", "missing"),
     zn <- length(z)
 
     ## fragment seq (amino-terminus)
-    aseq <- rep(rep(substring(sequence, rep(1L, fn - 1L),
+    aseq <- rep(rep(substring(canonical_sequence, rep(1L, fn - 1L),
                               1L:(fn - 1L)), each = zn), nat)
 
     ## fragment seq (carboxyl-terminus)
-    cseq <- rep(rep(rev(substring(sequence, 2L:fn,
+    cseq <- rep(rep(rev(substring(canonical_sequence, 2L:fn,
                                   rep(fn, fn - 1L))), each=zn), nct)
 
     ## add the variable modifications and apply steps above
@@ -338,19 +356,52 @@ setMethod("calculateFragments", c("character", "missing"),
         df[[i]] <- .terminalModifications(df[[i]],
                                           modifications = fixed_modifications)
         rownames(df[[i]]) <- NULL
-        non_zero <- mod_combinations[[i]] != 0
-        names(mod_combinations[[i]])[non_zero] <-
-            paste0(names(mod_combinations[[i]])[non_zero],
-                   "[",
-                   mod_combinations[[i]][non_zero],
-                   "]")
-        df[[i]][["peptide"]] <- paste(names(mod_combinations[[i]]),
-                                      collapse = "")
+        if (sequence != canonical_sequence) {
+            df[[i]][["peptide"]] <- sequence
+        } else {
+            non_zero <- mod_combinations[[i]] != 0
+            names(mod_combinations[[i]])[non_zero] <-
+                paste0(names(mod_combinations[[i]])[non_zero],
+                       "[",
+                       mod_combinations[[i]][non_zero],
+                       "]")
+            df[[i]][["peptide"]] <- paste(names(mod_combinations[[i]]),
+                                          collapse = "")
+            }
     }
 
     df <- do.call(rbind, df)
     rownames(df) <- NULL
     df
+}
+
+#' @title Generates a numeric with positioned modifications
+#'
+#' @param sequence Character. A peptide sequence that may have modifications
+#' 
+#' @return Numeric of length equal to canonical sequence with specified 
+#' modifications.
+#'
+#' @author Guillaume Deflandre <guillaume.deflandre@uclouvain.be>
+#'
+#' @noRd
+#'
+#' @examples
+#' .parseModifiedSequence("APEPT[+79.966]IDEK")
+.parseModifiedSequence <- function(sequence) {
+    result <- c()
+    matches <- gregexpr("([A-Z])(?:\\[(.*?)\\])?", sequence, perl = TRUE)
+    parsed <- regmatches(sequence, matches)[[1]]
+    
+    for (match in parsed) {
+        aa <- sub("\\[.*", "", match)  # get the amino acid letter
+        if (grepl("\\[", match)) {
+            mod <- as.numeric(gsub(".*\\[|\\]", "", match))  # get numeric modification
+        } else {mod <- 0}
+        result <- c(result, mod)
+    }
+    
+    return(result)
 }
 
 #' @title Generates list of possible combinations of modifications

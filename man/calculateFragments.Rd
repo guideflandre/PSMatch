@@ -20,7 +20,9 @@
 )
 }
 \arguments{
-\item{sequence}{\code{character()} providing a peptide sequence.}
+\item{sequence}{\code{character()} providing a peptide sequence. If positional
+modifications are included in the sequence, variable modifications may not be
+used. See examples below for more detail.}
 
 \item{type}{\code{character} vector of target ions; possible values:
 \code{c("a", "b", "c", "x", "y", "z")}. Default is \code{type = c("b", "y")}.}
@@ -36,11 +38,13 @@ be added to the amino respectively carboxyl-terminus.}
 
 \item{variable_modifications}{A named \code{numeric} vector of variable modifications.
 Depending on the maximum number of modifications (\code{max_mods}), all possible
-combinations are returned.}
+combinations are returned. If positional modifications are present in the
+given sequence,}
 
 \item{max_mods}{A numeric indicating the maximum number of variable modifications
 allowed on the sequence at once. Does not include fixed modifications.
-Default value is positive infinity.}
+Default value is positive infinity. Is ignored when positional modifications
+are in effect.}
 
 \item{neutralLoss}{\code{list}, it has to have two named elments,
 namely \code{water} and \code{ammonia} that contain a \code{character} vector
@@ -108,6 +112,12 @@ calculateFragments("ACE", fixed_modifications = NULL)
 calculateFragments("VESITARHGEVLQLRPK",
                    type = c("a", "b", "c", "x", "y", "z"),
                    z = 1:2)
+
+## calculate fragments for ACE with an added positional modification
+calculateFragments("A[+43.25]CE")
+
+## Error when combined positional modification and variable modification
+calculateFragments("A[+43.25]CE", variable_modifications = c(A = 43.25))
 
 ## neutral loss
 defaultNeutralLoss()
