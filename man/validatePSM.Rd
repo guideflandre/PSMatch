@@ -80,21 +80,21 @@ A \code{data.frame()} that checks the different validation metrics.
 
 \code{checkXYpresence()} : \code{TRUE} if the x2-y2 fragments are both present.
 
-\code{checkOverlap()} : Is there an overlap between b- and y-ions ? If
-there is no overlap of fragments, there might be an unsearched
-for modification present. If there is an overlap, this further confirms the
-identification.  If the overlap checks out it returns \code{TRUE}, if not \code{FALSE}.
+\code{checkOverlap()} : Detects a gap in the coverage of b- and y-ions.
+Returns \code{TRUE} when a gap is found (b- and y-ions do not jointly cover the
+full sequence), which may indicate an unsearched modification. Returns
+\code{FALSE} when b- and y-ions overlap, further confirming the identification.
 
 \code{checkXrea()} : Spectrum quality metric defined in
-Na, Seungjin, and Eunok Paek. 2006. The higher the returned value, the better
-the quality of the spectrum.
+\emph{Na, Seungjin, and Eunok Paek. 2006}. The higher the returned value, the
+better the quality of the spectrum.
 
 \code{checkShiftConsistency()} : In case of modifications present:
 returns the percentage of potential mass shifts actually matched. If not
-applicapble because there are no modifications: \code{NA}.
+applicable because there are no modifications: \code{NA}.
 
 \code{checkParentIonIntensity()} : The relative intensity of the parent
-ion.
+ion over the base peak. A value close to 1 indicates poor fragmentation.
 
 \code{checkPrecursorPurity()} returns a \code{numeric} vector of length
 \code{length(x)}. Each value is the ratio of the most-intense peak to the
@@ -131,5 +131,96 @@ sp <- Spectra::joinSpectraData(spBoekweg, psmBoekweg, by.x = "pkey")
 head(sp[["modSequences"]] <- addFixedModifications(sp[[seq]]))
 
 validatePSM(sp[1:20], peptideVariable = "modSequences", fdr = fdr)
+
+
+library(Spectra)
+
+## Build a minimal spectrum containing a- and b-ions for "PEPTIDE"
+seq <- "PEPTIDE"
+frags_ab <- calculateFragments(seq, type = c("a", "b"))
+sp_ab <- DataFrame(msLevel = 2L, rtime = 100, sequence = seq)
+sp_ab$mz <- list(sort(frags_ab$mz))
+sp_ab$intensity <- list(rep(1e4, nrow(frags_ab)))
+sp_ab <- Spectra(sp_ab)
+## Both a2 and b2 are matched: returns TRUE
+checkABpresence(sp_ab)
+
+
+## Pass a fragment label list directly to checkXYpresence
+sp_xy <- DataFrame(msLevel = 2L, rtime = 100)
+sp_xy$mz <- list(c(100, 200, 300, 400))
+sp_xy$intensity <- list(rep(1e4, 4))
+sp_xy <- Spectra(sp_xy)
+## Fragment list containing x2 and y2: returns TRUE
+checkXYpresence(sp_xy, fragments = list(c("x2", "y2", "y3")))
+## Fragment list missing x2: returns FALSE
+checkXYpresence(sp_xy, fragments = list(c("y2", "y3", "y4")))
+
+
+## Sparse fragment coverage → gap detected (TRUE)
+seq <- "PEPTIDE"
+frags_all <- calculateFragments(seq, type = c("b", "y"))
+frags_sparse <- frags_all[frags_all$ion \%in\% c("b1", "b2", "y1", "y2"), ]
+sp_gap <- DataFrame(msLevel = 2L, rtime = 100, sequence = seq)
+sp_gap$mz <- list(sort(frags_sparse$mz))
+sp_gap$intensity <- list(rep(1e4, nrow(frags_sparse)))
+sp_gap <- Spectra(sp_gap)
+labs_gap <- suppressWarnings(labelFragments(sp_gap, type = c("b", "y")))
+checkOverlap(sp_gap, fragments = labs_gap, strippedSeq = seq)
+
+## Full b and y coverage → no gap (FALSE)
+sp_full <- DataFrame(msLevel = 2L, rtime = 100, sequence = seq)
+sp_full$mz <- list(sort(frags_all$mz))
+sp_full$intensity <- list(rep(1e4, nrow(frags_all)))
+sp_full <- Spectra(sp_full)
+labs_full <- suppressWarnings(labelFragments(sp_full, type = c("b", "y")))
+checkOverlap(sp_full, fragments = labs_full, strippedSeq = seq)
+
+
+## Uniform intensities → signal concentrated nowhere → low Xrea
+sp_unif <- DataFrame(msLevel = 2L, rtime = 100)
+sp_unif$mz <- list(c(100, 200, 300, 400, 500))
+sp_unif$intensity <- list(rep(1e4, 5))
+sp_unif <- Spectra(sp_unif)
+checkXrea(sp_unif)
+
+## One dominant peak → signal concentrated → higher Xrea
+sp_dom <- DataFrame(msLevel = 2L, rtime = 100)
+sp_dom$mz <- list(c(100, 200, 300, 400, 500))
+sp_dom$intensity <- list(c(1e6, 100, 100, 100, 100))
+sp_dom <- Spectra(sp_dom)
+checkXrea(sp_dom)
+
+
+## Unmodified sequence → no shift to assess, returns NA
+seq <- "PEPTIDE"
+frags_sc <- calculateFragments(seq)
+sp_sc <- DataFrame(msLevel = 2L, rtime = 100, sequence = seq)
+sp_sc$mz <- list(sort(frags_sc$mz))
+sp_sc$intensity <- list(rep(1e4, nrow(frags_sc)))
+sp_sc <- Spectra(sp_sc)
+labs_sc <- suppressWarnings(labelFragments(sp_sc))
+checkShiftConsistency(sp_sc, fragments = labs_sc)
+
+
+## Precursor ion is the most intense peak → ratio of 1
+sp_p <- DataFrame(msLevel = 2L, rtime = 100, precursorMz = 500.0)
+sp_p$mz <- list(c(100, 200, 300, 400, 500))
+sp_p$intensity <- list(c(100, 100, 100, 100, 1e6))
+sp_p <- Spectra(sp_p)
+checkParentIonIntensity(sp_p)
+
+## Precursor absent from spectrum → ratio of 0
+sp_np <- DataFrame(msLevel = 2L, rtime = 100, precursorMz = 999.0)
+sp_np$mz <- list(c(100, 200, 300, 400, 500))
+sp_np$intensity <- list(c(100, 100, 100, 100, 1e6))
+sp_np <- Spectra(sp_np)
+checkParentIonIntensity(sp_np)
+
+
+## Check precursor purity on the bundled spectra dataset
+data("spBoekweg")
+purity <- checkPrecursorPurity(spBoekweg[1:5])
+purity
 
 }
