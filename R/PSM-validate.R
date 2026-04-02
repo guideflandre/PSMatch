@@ -11,11 +11,14 @@
 #'
 #' @param x A `Spectra` object with identifications. The identification
 #' sequences need to be stocked in a variable name called with the parameter
-#' `sequenceVariable`. Refer to `Spectra::joinSpectraData` for more
+#' `peptideVariable`. Refer to `Spectra::joinSpectraData` for more
 #' informations.
 #'
-#' @param sequenceVariable A `character` of length 1L, representing the peptide
+#' @param peptideVariable A `character` of length 1L, representing the peptide
 #' sequence for that identification.
+#'
+#' @param fdr A `character` of length 1L, representing the FDR value for that
+#' identification.
 #'
 #' @param ... Arguments passed down to `checkParentIonIntensity()`
 #'
@@ -31,39 +34,33 @@
 #'
 #' library(Spectra)
 #'
-#' sp <- Spectra("/home/guillaumedeflandre/Documents/drive_UCL/PHD/rformassspectrometry/PSMatch-oriented/PSMatch-paper/2025-PSMatch-MiMB/data/001_exp1-PO4_PO4_D20.mzML")
+#' data("psmBoekweg")
+#' data("spBoekweg")
 #'
-#' sage_results <- read.delim("/home/guillaumedeflandre/Documents/drive_UCL/PHD/rformassspectrometry/PSMatch-oriented/PSMatch-paper/2025-PSMatch-MiMB/data/PXD039419-sage-results.tsv")
+#' ## Make sure you can join both using `joinSpectraData`:
+#' head(psmBoekweg$pkey <- paste0(basename(psmBoekweg$filename),
+#'                                sub("^.+scan=", "::", psmBoekweg$scannr)))
+#' head(spBoekweg$pkey <- paste0(basename(spBoekweg$dataOrigin),
+#'                               sub("^.+scan=", "::", spBoekweg$spectrumId)))
 #'
-#' sage_results[, "label"] <- sage_results[, "label"] < 0
+#' sp <- Spectra::joinSpectraData(spBoekweg, psmBoekweg, by.x = "pkey")
 #'
-#' psms <- PSM(
-#' sage_results,
-#' spectrum = "scannr",
-#' peptide = "peptide",
-#' protein = "proteins",
-#' decoy = "label",
-#' rank = "rank",
-#' score = "sage_discriminant_score",
-#' fdr = "spectrum_q")
+#' ## Add carbamidomethylation or other modifications if need be
+#' ## See ?PTMods::addFixedModifications
+#' (seq <- psmVariables(psmBoekweg)[["peptide"]])
+#' (fdr <- psmVariables(psmBoekweg)[["fdr"]])
+#' head(sp[["modSequences"]] <- addFixedModifications(sp[[seq]]))
 #'
-#' psms <- filterPsmRank(psms)
+#' validatePSM(sp[1:20], peptideVariable = "modSequences", fdr = fdr)
 #'
-#' head(sp$pkey <- paste0(basename(sp$dataOrigin), sub("ˆ.+scan=", "::", sp$spectrumId)))
-#' head(psms$pkey <- paste0(basename(psms$filename), sub("ˆ.+scan=", "::", psms$scannr)))
-#'
-#' sp <- joinSpectraData(sp, psms, by.x = "pkey")
-#'
-#' validatePSM(x = sp[3492:3500], sequenceVariable = "peptide", fdr = "spectrum_q")
-validatePSM <- function(x, sequenceVariable = "peptide",
-                        fdr = "spectrum_q", ...) {
+validatePSM <- function(x, peptideVariable = "peptide", fdr = "fdr", ...) {
 
     stopifnot(requireNamespace("Spectra"))
     stopifnot(inherits(x, "Spectra"))
 
     v <- Spectra::peaksData(x) ## all spectra (MS1 & MS2) peaks data
 
-    sequenceIds <- Spectra::spectraData(x, sequenceVariable)[, 1L]
+    sequenceIds <- Spectra::spectraData(x, peptideVariable)[, 1L]
     identifications <- which(!is.na(sequenceIds))
 
     x$sequence <- sequenceIds ## Create 'sequence' variable for labelFragments
@@ -83,7 +80,8 @@ validatePSM <- function(x, sequenceVariable = "peptide",
 
     xy <- checkXYpresence(x_sub, fragments = frags)
 
-    overlap <- checkOverlap(x_sub, fragments = frags)
+    overlap <- checkOverlap(x_sub, peptide = peptideVariable,
+        fragments = frags, strippedSeq = stripped_sequence)
 
     xrea <- checkXrea(x_sub, peaks = sub_v)
 
@@ -96,15 +94,15 @@ validatePSM <- function(x, sequenceVariable = "peptide",
     res <- data.frame(spectrumId = Spectra::spectraData(x_sub, "spectrumId")[, 1L],
                       scanIndex = Spectra::scanIndex(x_sub),
                       peptide = sequenceIds[identifications],
-                      canonical_seq = stripped_sequence,
+                      canonicalSeq = stripped_sequence,
                       fdr = Spectra::spectraData(x_sub, fdr)[, 1L],
-                      a2b2_presence = ab,
-                      x2y2_presence = xy,
-                      by_overlap = overlap,
-                      xrea = xrea,
-                      shift_consistency = shifts,
-                      parent_ion_int = parent,
-                      precursor_purity = purity_ints)
+                      a2b2 = ab,
+                      x2y2 = xy,
+                      byOverlap = overlap,
+                      Xrea = xrea,
+                      shiftConsistency = shifts,
+                      parentIonInt = parent,
+                      precursorPurity = purity_ints)
 
     rownames(res) <- NULL
     return(res)
@@ -151,33 +149,37 @@ checkXYpresence <- function(x, fragments = NULL) {
 #' @param fragments The result of `labelFragments()` on `x`.
 #'
 #' @returns `checkOverlap()` : Is there an overlap between b- and y-ions ? If
-#' there is and no modification was identified, there might be an unsearched
-#' for modification present. If there is not, this further confirms the
+#' there is no overlap of fragments, there might be an unsearched
+#' for modification present. If there is an overlap, this further confirms the
 #' identification.  If the overlap checks out it returns `TRUE`, if not `FALSE`.
 #'
 #' @export
-checkOverlap <- function(x, sequenceVariable = "peptide",
+checkOverlap <- function(x, peptideVariable = "peptide",
                          fragments = NULL, strippedSeq = NULL) {
 
     if (length(strippedSeq)) {
         stripped_sequence <- strippedSeq
     } else {
-        sequence_ids  <- Spectra::spectraData(x, sequenceVariable)[, 1L]
-        stripped_sequence <- gsub("[^A-Za-z]", "", sequence_ids)
+        sequence_ids  <- Spectra::spectraData(x, peptideVariable)[, 1L]
+        stripped_sequence <- PTMods::getCanonicalSequence(sequence_ids)
     }
 
     if (!length(fragments)) {
+        x$sequence <- Spectra::spectraData(x, peptideVariable)[, 1L]
         labels <- suppressWarnings(labelFragments(x))
     } else {
         labels <- fragments
     }
 
+    ## fetch all b and y fragments based on calculateFragments()
+    ## including neutral losses
     index <- lapply(labels, function(x) as.integer(gsub("\\D", "", x)))
     b_ions <- lapply(labels, function(x) which(grepl("b", x)))
     y_ions <- lapply(labels, function(x) which(grepl("y", x)))
 
     ans <- vector(length = length(x))
 
+    ## fetch only the highest fragments for both b and y fragments
     for (i in seq_along(x)) {
         max_b <- max(index[[i]][b_ions[[i]]], 0)
         max_y <- max(index[[i]][y_ions[[i]]], 0)
@@ -247,6 +249,7 @@ checkShiftConsistency <- function(x, fragments = NULL, strippedSeq = NULL) {
     if (length(fragments)) {
         labels = fragments
     } else {
+        x$sequence <- Spectra::spectraData(x, peptideVariable)[, 1L]
         labels <- suppressWarnings(labelFragments(x))
     }
 

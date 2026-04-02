@@ -11,7 +11,7 @@
 \alias{checkPrecursorPurity}
 \title{Validate a PSM}
 \usage{
-validatePSM(x, sequenceVariable = "peptide", fdr = "spectrum_q", ...)
+validatePSM(x, peptideVariable = "peptide", fdr = "fdr", ...)
 
 checkABpresence(x, fragments = NULL)
 
@@ -19,7 +19,7 @@ checkXYpresence(x, fragments = NULL)
 
 checkOverlap(
   x,
-  sequenceVariable = "peptide",
+  peptideVariable = "peptide",
   fragments = NULL,
   strippedSeq = NULL
 )
@@ -44,8 +44,11 @@ the same run(s). MS1 spectra are used as the source for isolation window
 peak data; each MS2 is paired with the nearest preceding MS1 scan (sorted
 by retention time within each \code{dataOrigin}).}
 
-\item{sequenceVariable}{A \code{character} of length 1L, representing the peptide
+\item{peptideVariable}{A \code{character} of length 1L, representing the peptide
 sequence for that identification.}
+
+\item{fdr}{A \code{character} of length 1L, representing the FDR value for that
+identification.}
 
 \item{...}{Arguments passed down to \code{checkParentIonIntensity()}}
 
@@ -78,8 +81,8 @@ A \code{data.frame()} that checks the different validation metrics.
 \code{checkXYpresence()} : \code{TRUE} if the x2-y2 fragments are both present.
 
 \code{checkOverlap()} : Is there an overlap between b- and y-ions ? If
-there is and no modification was identified, there might be an unsearched
-for modification present. If there is not, this further confirms the
+there is no overlap of fragments, there might be an unsearched
+for modification present. If there is an overlap, this further confirms the
 identification.  If the overlap checks out it returns \code{TRUE}, if not \code{FALSE}.
 
 \code{checkXrea()} : Spectrum quality metric defined in
@@ -110,28 +113,23 @@ identifications.
 
 library(Spectra)
 
-sp <- Spectra("/home/guillaumedeflandre/Documents/drive_UCL/PHD/rformassspectrometry/PSMatch-oriented/PSMatch-paper/2025-PSMatch-MiMB/data/001_exp1-PO4_PO4_D20.mzML")
+data("psmBoekweg")
+data("spBoekweg")
 
-sage_results <- read.delim("/home/guillaumedeflandre/Documents/drive_UCL/PHD/rformassspectrometry/PSMatch-oriented/PSMatch-paper/2025-PSMatch-MiMB/data/PXD039419-sage-results.tsv")
+## Make sure you can join both using `joinSpectraData`:
+head(psmBoekweg$pkey <- paste0(basename(psmBoekweg$filename),
+                               sub("^.+scan=", "::", psmBoekweg$scannr)))
+head(spBoekweg$pkey <- paste0(basename(spBoekweg$dataOrigin),
+                              sub("^.+scan=", "::", spBoekweg$spectrumId)))
 
-sage_results[, "label"] <- sage_results[, "label"] < 0
+sp <- Spectra::joinSpectraData(spBoekweg, psmBoekweg, by.x = "pkey")
 
-psms <- PSM(
-sage_results,
-spectrum = "scannr",
-peptide = "peptide",
-protein = "proteins",
-decoy = "label",
-rank = "rank",
-score = "sage_discriminant_score",
-fdr = "spectrum_q")
+## Add carbamidomethylation or other modifications if need be
+## See ?PTMods::addFixedModifications
+(seq <- psmVariables(psmBoekweg)[["peptide"]])
+(fdr <- psmVariables(psmBoekweg)[["fdr"]])
+head(sp[["modSequences"]] <- addFixedModifications(sp[[seq]]))
 
-psms <- filterPsmRank(psms)
+validatePSM(sp[1:20], peptideVariable = "modSequences", fdr = fdr)
 
-head(sp$pkey <- paste0(basename(sp$dataOrigin), sub("ˆ.+scan=", "::", sp$spectrumId)))
-head(psms$pkey <- paste0(basename(psms$filename), sub("ˆ.+scan=", "::", psms$scannr)))
-
-sp <- joinSpectraData(sp, psms, by.x = "pkey")
-
-validatePSM(x = sp[3492:3500], sequenceVariable = "peptide", fdr = "spectrum_q")
 }
