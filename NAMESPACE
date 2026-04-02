@@ -3,7 +3,6 @@
 export("reduced<-")
 export(ConnectedComponents)
 export(PSM)
-export(addFragments)
 export(ccMatrix)
 export(checkABpresence)
 export(checkOverlap)

@@ -2,6 +2,8 @@
 
 ## PSMatch 1.15.1
 
+- Changed `labelFragments()` to record closest match and not just common match
+- Remove deprecated `addFragments()`
 - Corrected `plotSpectraPTM()` relative `PTMods` dependencies, identifications
 are highlighted in bold in the USI.
 - Add PTMods dependency and thus positional modifications in
