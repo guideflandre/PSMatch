@@ -81,9 +81,9 @@ A \code{data.frame()} that checks the different validation metrics.
 \code{checkXYpresence()} : \code{TRUE} if the x2-y2 fragments are both present.
 
 \code{checkOverlap()} : Detects a gap in the coverage of b- and y-ions.
-Returns \code{TRUE} when a gap is found (b- and y-ions do not jointly cover the
+Returns \code{FALSE} when a gap is found (b- and y-ions do not jointly cover the
 full sequence), which may indicate an unsearched modification. Returns
-\code{FALSE} when b- and y-ions overlap, further confirming the identification.
+\code{TRUE} when b- and y-ions overlap, further confirming the identification.
 
 \code{checkXrea()} : Spectrum quality metric defined in
 \emph{Na, Seungjin, and Eunok Paek. 2006}. The higher the returned value, the
@@ -157,7 +157,7 @@ checkXYpresence(sp_xy, fragments = list(c("x2", "y2", "y3")))
 checkXYpresence(sp_xy, fragments = list(c("y2", "y3", "y4")))
 
 
-## Sparse fragment coverage → gap detected (TRUE)
+## Sparse fragment coverage → gap detected (FALSE)
 seq <- "PEPTIDE"
 frags_all <- calculateFragments(seq, type = c("b", "y"))
 frags_sparse <- frags_all[frags_all$ion \%in\% c("b1", "b2", "y1", "y2"), ]
@@ -168,7 +168,7 @@ sp_gap <- Spectra(sp_gap)
 labs_gap <- suppressWarnings(labelFragments(sp_gap, type = c("b", "y")))
 checkOverlap(sp_gap, fragments = labs_gap, strippedSeq = seq)
 
-## Full b and y coverage → no gap (FALSE)
+## Full b and y coverage → no gap (TRUE)
 sp_full <- DataFrame(msLevel = 2L, rtime = 100, sequence = seq)
 sp_full$mz <- list(sort(frags_all$mz))
 sp_full$intensity <- list(rep(1e4, nrow(frags_all)))

@@ -65,6 +65,15 @@
 ##' @param USI `logical(1L)`. If `TRUE`, the universal spectrum identifier is
 ##'     displayed.
 ##'
+##' @param fixedModifications Named `numeric` or `character`, passed to
+##'     `PTMods::addFixedModifications()`. Applied to all sequences before
+##'     plotting. `NULL` by default (no fixed modifications applied).
+##'
+##' @param variableModifications Named `numeric` or `character`, passed to
+##'     `PTMods::addVariableModifications()`. Each unique combination of
+##'     variable modifications generates a separate copy of the corresponding
+##'     spectrum. `NULL` by default (no variable modifications applied).
+##'
 ##' @param ... additional parameters to be passed to the `labelFragments()`
 ##'     function.
 ##'
@@ -83,40 +92,22 @@
 ##' @export
 ##'
 ##' @examples
-##' library("Spectra")
+##' library(Spectra)
 ##'
-##' sp <- DataFrame(msLevel = 2L, rtime = 2345, sequence = "SIGFEGDSIGR")
-##' sp$mz <- list(c(75.048614501953, 81.069030761719, 86.085876464844,
-##'                 88.039, 158.089569091797, 163.114898681641,
-##'                 173.128, 177.098587036133, 214.127075195312,
-##'                 232.137542724609, 233.140335083008, 259.938415527344,
-##'                 260.084167480469, 277.111572265625, 282.680786132812,
-##'                 284.079437255859, 291.208282470703, 315.422576904297,
-##'                 317.22509765625, 327.2060546875, 362.211944580078,
-##'                 402.235290527344, 433.255004882812, 534.258783,
-##'                 549.305236816406, 593.217041015625, 594.595092773438,
-##'                 609.848327636719, 631.819702148438, 632.324035644531,
-##'                 632.804931640625, 640.8193359375, 641.309936523438,
-##'                 641.82568359375, 678.357238769531, 679.346252441406,
-##'                 706.309623, 735.358947753906, 851.384033203125,
-##'                 880.414001464844, 881.40185546875, 906.396433105469,
-##'                 938.445861816406, 1022.56658935547, 1050.50415039062,
-##'                 1059.82800292969, 1107.52734375, 1138.521484375,
-##'                 1147.51538085938, 1226.056640625))
-##' sp$intensity <- list(c(83143.03, 65473.8, 192735.53, 3649178.5,
-##'                        379537.81, 89117.58, 922802.69, 61190.44,
-##'                        281353.22, 2984798.75, 111935.03, 42512.57,
-##'                        117443.59, 60773.67, 39108.15, 55350.43,
-##'                        209952.97, 37001.18, 439515.53, 139584.47,
-##'                        46842.71, 1015457.44, 419382.31, 63378.77,
-##'                        444406.66, 58426.91, 46007.71, 58711.72,
-##'                        80675.59, 312799.97, 134451.72, 151969.72,
-##'                        1961975, 69405.76, 395735.62, 71002.98,
-##'                        3215457.75, 136619.47, 166158.69, 682329.75,
-##'                        239964.69, 242025.44, 1338597.62, 50118.02,
-##'                        1708093.12, 43119.03, 97048.02, 2668231.75,
-##'                        83310.2, 40705.72))
-##' sp <- Spectra(sp)
+##' data("psmBoekweg")
+##' data("spBoekweg")
+##'
+##' ## Make sure you can join both using `joinSpectraData`:
+##' head(psmBoekweg$pkey <- paste0(basename(psmBoekweg$filename),
+##'                                sub("^.+scan=", "::", psmBoekweg$scannr)))
+##' head(spBoekweg$pkey <- paste0(basename(spBoekweg$dataOrigin),
+##'                               sub("^.+scan=", "::", spBoekweg$spectrumId)))
+##'
+##' sp <- Spectra::joinSpectraData(spBoekweg, psmBoekweg, by.x = "pkey")
+##'
+##' ## Keep an example of an identified spectrum and create "sequence" variable
+##' sp <- sp[!is.na(sp$peptide)][1]
+##' sp$sequence <- sp$peptide
 ##'
 ##' ## Annotate the spectum with the fragment labels
 ##' plotSpectraPTM(sp, main = "An example of an annotated plot")
@@ -129,9 +120,12 @@
 ##'
 ##' ## Annotate the spectrum with modifications using PTMods
 ##' sp_mod <- sp
-##' sp_mod$sequence <- PTMods::addFixedModifications("SIGFEGDSIGR",
-##'                                                   fixedModifications = c(Nterm = 49.469))
+##' sp_mod$sequence <- PTMods::addFixedModifications(sp_mod$sequence,
+##'                                                   fixedModifications = c(Nterm = "Acetyl"))
 ##' plotSpectraPTM(sp_mod)
+##'
+##' ## Or call them within the function directly:
+##' plotSpectraPTM(sp, fixedModifications = NULL, variableModifications = c(R = "Methyl"))
 ##'
 ##' ## Annotate multiple spectra at a time
 ##' plotSpectraPTM(c(sp, sp))
@@ -149,10 +143,35 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
                            labelCex = 1, labelSrt = 0,
                            labelAdj = NULL, labelPos = 3, labelOffset = 0.5,
                            asp = 1, minorTicks = TRUE, USI = TRUE,
+                           fixedModifications = NULL,
+                           variableModifications = NULL,
                            ...) {
     if (!("sequence" %in% Spectra::spectraVariables(x))) {
         stop("Missing 'sequence' in Spectra::spectraVariables(x)")
     }
+
+    ## Apply fixed modifications to all sequences if provided
+    if (!is.null(fixedModifications)) {
+        x$sequence <- PTMods::addFixedModifications(x$sequence,
+            fixedModifications = fixedModifications)
+    }
+
+    ## Apply variable modifications, expanding spectra for each combination.
+    if (!is.null(variableModifications)) {
+        seqsIn <- x$sequence
+        parts <- lapply(seq_along(x), function(i) {
+            combs <- PTMods::addVariableModifications(
+                seqsIn[i],
+                variableModifications = variableModifications)
+            lapply(combs, function(s) {
+                xi <- x[i]
+                xi$sequence <- s
+                xi
+            })
+        })
+        x <- do.call(c, unlist(parts, recursive = FALSE))
+    }
+
     nsp <- length(x)
     old_par <- par(no.readonly = TRUE)
     on.exit(par(old_par))
@@ -309,7 +328,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
     "/peptide: " * bold(.(peptide_sequence))
     )
 
-    if (USI) mtext(subtxt, line = -1.75, cex = 0.9)
+    if (USI) mtext(subtxt, line = -1.70, cex = 0.9)
 
     base_peak <- which.max(abs(ints))
     text(mzs[base_peak], ints[base_peak] * 0.60,
