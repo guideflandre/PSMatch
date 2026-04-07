@@ -11,12 +11,10 @@ library(Spectra)
 ### bulk ###
 ############
 f <- MsDataHub::OR11_20160122_PG_HeLa_CVB3_CT_A.mzML()
-f <- "/home/guillaumedeflandre/Documents/drive_UCL/PHD/data/MsDataHub/boekweg2022/OR11_20160122_PG_HeLa_CVB3_CT_A.mzML"
 
 sp <- Spectra(f)
 
 p <- MsDataHub::OR11_20160122_PG_HeLa_CVB3_CT_A.sage.tsv()
-p <- "/home/guillaumedeflandre/Documents/drive_UCL/PHD/data/MsDataHub/boekweg2022/OR11_20160122_PG_HeLa_CVB3_CT_A.sage.tsv"
 
 psms <- sagePSM(p)
 

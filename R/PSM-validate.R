@@ -26,8 +26,6 @@
 #'
 #' @importFrom Spectra spectraData peaksData
 #'
-#' @importFrom PTMods convertAnnotation
-#'
 #' @export
 #'
 #' @examples
@@ -373,7 +371,7 @@ checkShiftConsistency <- function(x, fragments = NULL, strippedSeq = NULL) {
 #' @param ppm `Numeric(1L)` The ppm value to use when matching peaks that is
 #'   added to `tolerance`.
 #'
-#' @importFrom MsCoreUtils common
+#' @importFrom MsCoreUtils closest
 #'
 #' @returns `checkParentIonIntensity()` : The relative intensity of the parent
 #' ion over the base peak. A value close to 1 indicates poor fragmentation.
@@ -414,7 +412,7 @@ checkParentIonIntensity <- function (x,
     for (i in seq_along(x)) {
 
         peak <- v[[i]]
-        precursor_index <- which(MsCoreUtils::common(peak[, "mz"],
+        precursor_index <- which(MsCoreUtils::closest(peak[, "mz"],
                                                      precursors[i],
                                                      tolerance = tolerance,
                                                      ppm = ppm))
