@@ -22,6 +22,9 @@ plotSpectraPTM(
   asp = 1,
   minorTicks = TRUE,
   USI = TRUE,
+  fixedModifications = NULL,
+  variableModifications = NULL,
+  addCarbamidomethyl = TRUE,
   ...
 )
 }
@@ -78,8 +81,25 @@ plots.  Default is set to \code{TRUE}.}
 \item{USI}{\code{logical(1L)}. If \code{TRUE}, the universal spectrum identifier is
 displayed.}
 
+\item{fixedModifications}{Named \code{numeric} or \code{character}, passed to
+\code{PTMods::addFixedModifications()}. Applied to all sequences before
+plotting. \code{NULL} by default (no fixed modifications applied).}
+
+\item{variableModifications}{Named \code{numeric} or \code{character}, passed to
+\code{PTMods::addVariableModifications()}. Each unique combination of
+variable modifications generates a separate copy of the corresponding
+spectrum. \code{NULL} by default (no variable modifications applied).}
+
+\item{addCarbamidomethyl}{logical(1L) set to \code{TRUE} by default. Applies
+carbamidomethylation as a fixed modification unless carbamidomethyl is
+already present in the given sequences.
+If carbamidomethylation should be applied as a variable modification, do
+set \code{addCarbamidomethylation = FALSE}. For more
+details on this, see the appropriate vignette by running
+`vignette("Fragments", package = "PSMatch")}
+
 \item{...}{additional parameters to be passed to the \code{labelFragments()}
-function.}
+and \code{calculateFragments()} functions.}
 }
 \value{
 Creates a plot depicting an MS/MS-MS spectrum.
@@ -141,9 +161,12 @@ plotSpectraPTM(sp, type = c("a", "b", "x", "y"))
 
 ## Annotate the spectrum with modifications using PTMods
 sp_mod <- sp
-sp_mod$sequence <- PTMods::addFixedModifications("SIGFEGDSIGR",
-                                                  fixedModifications = c(Nterm = 49.469))
+sp_mod$sequence <- PTMods::addFixedModifications("SIGFEGDSIGR", fixedModifications = c(Nterm = "Acetyl"))
 plotSpectraPTM(sp_mod)
+
+## Or call them within the function directly:
+plotSpectraPTM(sp, fixedModifications = NULL,
+variableModifications = c(R = "Methyl"))
 
 ## Annotate multiple spectra at a time
 plotSpectraPTM(c(sp, sp))

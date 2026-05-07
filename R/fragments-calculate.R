@@ -38,6 +38,12 @@
 #' the values is preserved in the output. Specifies which fixed
 #' modifications are applied to which amino acids.
 #'
+#' @param addCarbamidomethyl logical(1L) set to `TRUE` by default. Applies
+#' carbamidomethylation as a fixed modification unless `fixed_modifications` is
+#' not `NULL` or if a carbamidomethyl is already present in the given sequences.
+#' It is strongly suggested to rely on `PTMods::addFixedModifications()`
+#' instead.
+#'
 #' @param variable_modifications Deprecated parameter. Please use
 #' [PTMods::addVariableModifications()] to generate sequences with positional
 #' modifications instead. Named `numeric` or `character`. If a `character`
@@ -80,6 +86,8 @@
 #'
 #' @importFrom ProtGenerics calculateFragments
 #'
+#' @import PTMods
+#'
 #' @exportMethod calculateFragments
 #'
 #' @examples
@@ -96,6 +104,8 @@
 #' ## The annotation style must be supported by PTMods::convertAnnotation
 #' calculateFragments("T[+79.966]CE")
 #' calculateFragments("T[Phospho]CE")
+#' ## Notice carbamidomethylation applied by default, but ignored if already
+#' ## present.
 #' calculateFragments("T[UNIMOD:21]C[Carbamidomethyl]E")
 #'
 #' ## neutral loss
@@ -143,6 +153,7 @@ setMethod("calculateFragments", c("character", "missing"),
           function(sequence, type = c("b", "y"), z = 1,
                    fixed_modifications = NULL,
                    variable_modifications = NULL,
+                   addCarbamidomethyl = TRUE,
                    max_mods = Inf,
                    neutralLoss = defaultNeutralLoss(),
                    verbose = TRUE) {
@@ -155,6 +166,19 @@ setMethod("calculateFragments", c("character", "missing"),
         if (!is.null(variable_modifications)) {
             warning("'variable_modifications' is deprecated,
                 please use 'PTMods::addVariableModifications()' instead.")
+        }
+
+        if (addCarbamidomethyl) {
+
+            ## Check if carbamidomethylation already present in given sequences
+            mass_seqs <- PTMods::convertAnnotation(sequence, "name")
+            carbamidomethyl <- "[Carbamidomethyl]" %in%
+                PTMods:::.getModifications(mass_seqs)
+
+            ## if absent, add it unless fixed_modifications is not NULL
+            if (!carbamidomethyl & is.null(fixed_modifications)) {
+                fixed_modifications <- c(C= 57.02146)
+            }
         }
 
         if (!is.null(fixed_modifications) | !is.null(variable_modifications)) {
@@ -227,7 +251,7 @@ setMethod("calculateFragments", c("character", "missing"),
                                 neutralLoss = defaultNeutralLoss()) {
 
     initial_sequence <- sequence
-    sequence <- convertAnnotation(sequence)
+    sequence <- PTMods::convertAnnotation(sequence)
 
     parsed_modifications <- PTMods:::.parseModifiedSequence(sequence)
     canonical_sequence <- PTMods::getCanonicalSequence(sequence)

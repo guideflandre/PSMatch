@@ -65,8 +65,25 @@
 ##' @param USI `logical(1L)`. If `TRUE`, the universal spectrum identifier is
 ##'     displayed.
 ##'
+##' @param fixedModifications Named `numeric` or `character`, passed to
+##'     `PTMods::addFixedModifications()`. Applied to all sequences before
+##'     plotting. `NULL` by default (no fixed modifications applied).
+##'
+##' @param variableModifications Named `numeric` or `character`, passed to
+##'     `PTMods::addVariableModifications()`. Each unique combination of
+##'     variable modifications generates a separate copy of the corresponding
+##'     spectrum. `NULL` by default (no variable modifications applied).
+##'
+##' @param addCarbamidomethyl logical(1L) set to `TRUE` by default. Applies
+##' carbamidomethylation as a fixed modification unless carbamidomethyl is
+##' already present in the given sequences.
+##' If carbamidomethylation should be applied as a variable modification, do
+##' set `addCarbamidomethylation = FALSE`. For more
+##' details on this, see the appropriate vignette by running
+##' `vignette("Fragments", package = "PSMatch")
+##'
 ##' @param ... additional parameters to be passed to the `labelFragments()`
-##'     function.
+##'     and `calculateFragments()` functions.
 ##'
 ##' @importFrom graphics layout par
 ##'
@@ -129,9 +146,12 @@
 ##'
 ##' ## Annotate the spectrum with modifications using PTMods
 ##' sp_mod <- sp
-##' sp_mod$sequence <- PTMods::addFixedModifications("SIGFEGDSIGR",
-##'                                                   fixedModifications = c(Nterm = 49.469))
+##' sp_mod$sequence <- PTMods::addFixedModifications("SIGFEGDSIGR", fixedModifications = c(Nterm = "Acetyl"))
 ##' plotSpectraPTM(sp_mod)
+##'
+##' ## Or call them within the function directly:
+##' plotSpectraPTM(sp, fixedModifications = NULL,
+##' variableModifications = c(R = "Methyl"))
 ##'
 ##' ## Annotate multiple spectra at a time
 ##' plotSpectraPTM(c(sp, sp))
@@ -149,20 +169,48 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
                            labelCex = 1, labelSrt = 0,
                            labelAdj = NULL, labelPos = 3, labelOffset = 0.5,
                            asp = 1, minorTicks = TRUE, USI = TRUE,
+                           fixedModifications = NULL,
+                           variableModifications = NULL,
+                           addCarbamidomethyl = TRUE,
                            ...) {
     if (!("sequence" %in% Spectra::spectraVariables(x))) {
         stop("Missing 'sequence' in Spectra::spectraVariables(x)")
     }
+
+    ## Apply fixed modifications to all sequences if provided
+    if (!is.null(fixedModifications)) {
+        x$sequence <- PTMods::addFixedModifications(x$sequence,
+            fixedModifications = fixedModifications)
+    }
+
+    ## Apply variable modifications, expanding spectra for each combination.
+    if (!is.null(variableModifications)) {
+        seqsIn <- x$sequence
+        parts <- lapply(seq_along(x), function(i) {
+            combs <- PTMods::addVariableModifications(
+                seqsIn[i],
+                variableModifications = variableModifications)
+            lapply(combs, function(s) {
+                xi <- x[i]
+                xi$sequence <- s
+                xi
+            })
+        })
+        x <- do.call(c, unlist(parts, recursive = FALSE))
+    }
+
     nsp <- length(x)
     old_par <- par(no.readonly = TRUE)
     on.exit(par(old_par))
 
     if (length(main) != nsp) main <- rep(main[1], nsp)
 
-    labels <- labelFragments(x, ppm = ppm, what = "ion", ...)
+    labels <- labelFragments(x, ppm = ppm, what = "ion",
+        addCarbamidomethyl = addCarbamidomethyl, ...)
 
     if (deltaMz) { ## Generate deltaMzData labels for .plot_single_spectrum_PTM
-        deltaMzData <- labelFragments(x, ppm = ppm, what = "mz", ...)
+        deltaMzData <- labelFragments(x, ppm = ppm, what = "mz",
+            addCarbamidomethyl = addCarbamidomethyl, ...)
         layout_matrix <- .make_layout_matrix(length(labels))
         layout(layout_matrix,
                heights = rep(c(5, 1), length.out = nrow(layout_matrix)))
@@ -309,7 +357,7 @@ plotSpectraPTM <- function(x, deltaMz = TRUE, ppm = 20,
     "/peptide: " * bold(.(peptide_sequence))
     )
 
-    if (USI) mtext(subtxt, line = -1.75, cex = 0.9)
+    if (USI) mtext(subtxt, line = -1.72, cex = 0.9)
 
     base_peak <- which.max(abs(ints))
     text(mzs[base_peak], ints[base_peak] * 0.60,

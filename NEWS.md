@@ -1,12 +1,22 @@
 # PSMatch 1.15
 
+## PSMatch 1.15.3
+
+- Adjusted documentation on `addCarbamidomethyl = TRUE` in
+  `calculateFragments()` set by default.
+- Corrected `plotSpectraPTM()` relative `PTMods` dependencies,
+  identifications are highlighted in bold in the USI. Added parameters
+  to call addFixed and addVariable within `plotSpectraPTM()`.
+- Add PTMods dependency and thus positional modifications in
+  `calculateFragments()` (see [issue
+  38](https://github.com/rformassspectrometry/PSMatch/issues/38))
+
+## PSMatch 1.15.2
+
+- Use `MsDataHub` instead of `msdata`.
+
 ## PSMatch 1.15.1
 
-- Corrected `plotSpectraPTM()` relative `PTMods` dependencies, identifications
-are highlighted in bold in the USI.
-- Add PTMods dependency and thus positional modifications in
-`calculateFragments()` (see
-[issue 38](https://github.com/rformassspectrometry/PSMatch/issues/38))
 - Fix minor check notes (Rd link and IRanges import)
 
 ## PSMatch 1.15.0
@@ -22,15 +32,17 @@ are highlighted in bold in the USI.
 ## PSMatch 1.13.2
 
 - Add CITATION to the pre-print (https://doi.org/10.31219/osf.io/62v9p_v2)
-- Add possibility to split protein groups in PSM data with `makeAdjacencyMatrix`
-(see [issue #30](https://github.com/rformassspectrometry/PSMatch/issues/30))
-- Removed `showDetails()` from `setMethod("show", "PSM")` as discussed in
-[issue #30](https://github.com/rformassspectrometry/PSMatch/issues/30)
+- Add possibility to split protein groups in PSM data with
+  `makeAdjacencyMatrix` (see [issue
+  #30](https://github.com/rformassspectrometry/PSMatch/issues/30))
+- Removed `showDetails()` from `setMethod("show", "PSM")` as discussed
+  in [issue
+  #30](https://github.com/rformassspectrometry/PSMatch/issues/30)
 - Add `USI` parameter to `plotSpectraPTM`.
 - Correct `filterPsmFdr` output message
 - Update Fragments vignette.
-- Improve `labelFragments()`runtime
-(see [issue #25](https://github.com/rformassspectrometry/PSMatch/issues/25)).
+- Improve `labelFragments()`runtime (see [issue
+  #25](https://github.com/rformassspectrometry/PSMatch/issues/25)).
 - Add Selenocysteine and Pyrrolysine to `getAminoAcids()`.
 
 ## PSMatch 1.13.1
